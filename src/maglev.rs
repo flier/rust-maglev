@@ -7,6 +7,7 @@ use primal::Sieve;
 
 use conshash::ConsistentHasher;
 
+/// Maglev lookup table
 #[derive(Clone)]
 pub struct Maglev<N, S> {
     nodes: Vec<N>,
@@ -15,20 +16,24 @@ pub struct Maglev<N, S> {
 }
 
 impl<'a, N: 'a + Hash + Clone> Maglev<N, BuildHasherDefault<DefaultHasher>> {
+    /// Creates a `Maglev` lookup table.
     pub fn new<I: Into<&'a [N]>>(nodes: I) -> Self {
         Maglev::with_capacity_and_hasher(nodes, 0, Default::default())
     }
 
+    /// Creates a `Maglev` lookup table with the specified capacity.
     pub fn with_capacity<I: Into<&'a [N]>>(nodes: I, capacity: usize) -> Self {
         Maglev::with_capacity_and_hasher(nodes, capacity, Default::default())
     }
 }
 
 impl<'a, N: 'a + Hash + Clone, S: BuildHasher> Maglev<N, S> {
+    /// Creates a `Maglev` lookup table which will use the given hash builder to hash keys.
     pub fn with_hasher<I: Into<&'a [N]>>(nodes: I, hash_builder: S) -> Self {
         Maglev::with_capacity_and_hasher(nodes, 0, hash_builder)
     }
 
+    /// Creates a `Maglev` lookup table with the specified capacity, using hasher to hash the keys.
     pub fn with_capacity_and_hasher<I: Into<&'a [N]>>(nodes: I,
                                                       capacity: usize,
                                                       hash_builder: S)
@@ -51,6 +56,11 @@ impl<'a, N: 'a + Hash + Clone, S: BuildHasher> Maglev<N, S> {
 }
 
 impl<'a, N: Hash, S: BuildHasher> ConsistentHasher<N> for Maglev<N, S> {
+    #[inline]
+    fn nodes(&self) -> &[N] {
+        self.nodes.as_slice()
+    }
+
     #[inline]
     fn capacity(&self) -> usize {
         self.lookup.len()
