@@ -1,6 +1,6 @@
 [package]
 name = "maglev"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Flier Lu <flier.lu@gmail.com>"]
 description = "Maglev - Google's consistent hashing algorithm"
 homepage = "https://github.com/flier/rust-maglev"
