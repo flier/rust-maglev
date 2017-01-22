@@ -1,0 +1,16 @@
+[package]
+name = "maglev"
+version = "0.1.0"
+authors = ["Flier Lu <flier.lu@gmail.com>"]
+description = "Maglev - Google's consistent hashing algorithm"
+homepage = "https://github.com/flier/rust-maglev"
+repository = "https://github.com/flier/rust-maglev.git"
+documentation = "https://docs.rs/maglev"
+keywords = ["google", "maglev", "consistent", "hashing"]
+license = "Apache-2.0"
+
+[dependencies]
+primal = "0.2"
+
+[dev-dependencies]
+fasthash = "0.2"
