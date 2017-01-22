@@ -20,9 +20,6 @@
 //! ```
 extern crate primal;
 
-#[cfg(test)]
-extern crate fasthash;
-
 mod conshash;
 mod maglev;
 

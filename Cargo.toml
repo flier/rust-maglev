@@ -11,6 +11,3 @@ license = "Apache-2.0"
 
 [dependencies]
 primal = "0.2"
-
-[dev-dependencies]
-fasthash = "0.2"
