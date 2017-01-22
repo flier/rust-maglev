@@ -1,0 +1,22 @@
+sudo: false
+language: rust
+rust:
+  - stable
+  - beta
+  - nightly
+os:
+  - osx
+  - linux
+matrix:
+  allow_failures:
+    - rust: nightly
+env:
+  global:
+    - RUST_BACKTRACE=1
+script:
+  - cargo build --verbose $FEATURES
+  - cargo test --verbose $FEATURES
+cache:
+  cargo: true
+  directories:
+    - $HOME/.cargo
