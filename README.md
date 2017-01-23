@@ -49,7 +49,7 @@ assert_eq!(*m.get(&"alice"), "Friday");
 assert_eq!(*m.get(&"bob"), "Wednesday");
 ```
 
-Maglev will `std::collections::hash_map::DefaultHasher` by default, we could use the given hash builder to hash keys.
+Maglev use `std::collections::hash_map::DefaultHasher` by default, we could use the given hash builder to hash keys.
 
 ```rust
 use fasthash::spooky::SpookyHash128;
