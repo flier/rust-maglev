@@ -33,7 +33,35 @@
 //! assert_eq!(*m.get(&"alice"), "Friday");
 //! assert_eq!(*m.get(&"bob"), "Wednesday");
 //! ```
+//!
+//! Maglev use `std::collections::hash_map::DefaultHasher` by default,
+//! we could use the given hash builder to hash keys.
+//!
+//! ```rust
+//! extern crate fasthash;
+//! extern crate maglev;
+//!
+//! use fasthash::spooky::SpookyHash128;
+//!
+//! use maglev::*;
+//!
+//! fn main() {
+//!     let m = Maglev::with_hasher(&["Monday",
+//!                                   "Tuesday",
+//!                                   "Wednesday",
+//!                                   "Thursday",
+//!                                   "Friday",
+//!                                   "Saturday",
+//!                                   "Sunday"][..],
+//!                                 SpookyHash128 {});
+//!
+//!     assert_eq!(*m.get(&"alice"), "Monday");
+//!     assert_eq!(*m.get(&"bob"), "Wednesday");
+//! }
+//! ```
 extern crate primal;
+#[cfg(test)]
+extern crate fasthash;
 
 mod conshash;
 mod maglev;

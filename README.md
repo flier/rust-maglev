@@ -50,3 +50,21 @@ let m = Maglev::with_capacity(&["Monday",
 assert_eq!(*m.get(&"alice"), "Friday");
 assert_eq!(*m.get(&"bob"), "Wednesday");
 ```
+
+Maglev will `std::collections::hash_map::DefaultHasher` by default, we could use the given hash builder to hash keys.
+
+```rust
+use fasthash::spooky::SpookyHash128;
+
+let m = Maglev::with_hasher(&["Monday",
+                              "Tuesday",
+                              "Wednesday",
+                              "Thursday",
+                              "Friday",
+                              "Saturday",
+                              "Sunday"][..],
+                            SpookyHash128 {});
+
+assert_eq!(*m.get(&"alice"), "Monday");
+assert_eq!(*m.get(&"bob"), "Wednesday");
+```

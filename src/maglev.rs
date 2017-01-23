@@ -126,6 +126,8 @@ impl<'a, N: 'a + Hash, S: BuildHasher> Maglev<N, S> {
 
 #[cfg(test)]
 pub mod tests {
+    use fasthash::spooky::SpookyHash128;
+
     use super::*;
     use conshash::ConsistentHasher;
 
@@ -193,5 +195,41 @@ pub mod tests {
 
         assert_eq!(*m.get(&"alice"), "Saturday");
         assert_eq!(*m.get(&"bob"), "Wednesday");
+    }
+
+    #[test]
+    fn test_maglev_with_custom_hasher() {
+        let m = Maglev::with_hasher(&["Monday",
+                                      "Tuesday",
+                                      "Wednesday",
+                                      "Thursday",
+                                      "Friday",
+                                      "Saturday",
+                                      "Sunday"][..],
+                                    SpookyHash128 {});
+
+        assert_eq!(m.nodes.len(), 7);
+        assert_eq!(m.lookup.len(), 701);
+        assert!(m.lookup.iter().all(|&n| n < m.nodes.len()));
+
+        assert_eq!(*m.get(&"alice"), "Monday");
+        assert_eq!(*m.get(&"bob"), "Wednesday");
+
+        let m = Maglev::with_capacity_and_hasher(&["Monday",
+                                                   "Tuesday",
+                                                   // "Wednesday",
+                                                   "Thursday",
+                                                   // "Friday",
+                                                   "Saturday",
+                                                   "Sunday"][..],
+                                                 m.capacity(),
+                                                 SpookyHash128 {});
+
+        assert_eq!(m.nodes.len(), 5);
+        assert_eq!(m.lookup.len(), 701);
+        assert!(m.lookup.iter().all(|&n| n < m.nodes.len()));
+
+        assert_eq!(*m.get(&"alice"), "Monday");
+        assert_eq!(*m.get(&"bob"), "Sunday");
     }
 }
