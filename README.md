@@ -1,7 +1,5 @@
-# rust-maglev [![travis build](https://travis-ci.org/flier/rust-maglev.svg?branch=master)](https://travis-ci.org/flier/rust-maglev) [![crate](https://img.shields.io/crates/v/maglev.svg)](https://crates.io/crates/maglev)
+# rust-maglev [![travis build](https://api.travis-ci.org/flier/rust-maglev.svg)](https://travis-ci.org/flier/rust-maglev) [![crate](https://img.shields.io/crates/v/maglev.svg)](https://crates.io/crates/maglev) [![docs](https://docs.rs/maglev/badge.svg)](https://docs.rs/maglev/)
 Google's consistent hashing algorithm
-
-[API Document](https://docs.rs/maglev)
 
 # Usage
 
