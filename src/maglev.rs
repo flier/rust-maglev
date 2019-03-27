@@ -1,96 +1,82 @@
-use std::mem;
-use std::iter;
-use std::hash::{Hash, Hasher, BuildHasher, BuildHasherDefault};
+use std::borrow::Borrow;
 use std::collections::hash_map::DefaultHasher;
+use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
+use std::iter;
 
 use primal::Sieve;
 
-use conshash::ConsistentHasher;
+use crate::conshash::ConsistentHasher;
 
 /// Maglev lookup table
 #[derive(Clone)]
 pub struct Maglev<N, S> {
     nodes: Vec<N>,
-    lookup: Vec<usize>,
+    lookup: Vec<isize>,
     hash_builder: S,
 }
 
-impl<'a, N: 'a + Hash + Clone> Maglev<N, BuildHasherDefault<DefaultHasher>> {
+impl<N: Hash + Eq> Maglev<N, BuildHasherDefault<DefaultHasher>> {
     /// Creates a `Maglev` lookup table.
-    pub fn new<I: Into<&'a [N]>>(nodes: I) -> Self {
+    pub fn new<I: IntoIterator<Item = N>>(nodes: I) -> Self {
         Maglev::with_capacity_and_hasher(nodes, 0, Default::default())
     }
 
     /// Creates a `Maglev` lookup table with the specified capacity.
-    pub fn with_capacity<I: Into<&'a [N]>>(nodes: I, capacity: usize) -> Self {
+    pub fn with_capacity<I: IntoIterator<Item = N>>(nodes: I, capacity: usize) -> Self {
         Maglev::with_capacity_and_hasher(nodes, capacity, Default::default())
     }
 }
 
-impl<'a, N: 'a + Hash + Clone, S: BuildHasher> Maglev<N, S> {
+impl<N: Hash + Eq, S: BuildHasher> Maglev<N, S> {
     /// Creates a `Maglev` lookup table which will use the given hash builder to hash keys.
-    pub fn with_hasher<I: Into<&'a [N]>>(nodes: I, hash_builder: S) -> Self {
+    pub fn with_hasher<I: IntoIterator<Item = N>>(nodes: I, hash_builder: S) -> Self {
         Maglev::with_capacity_and_hasher(nodes, 0, hash_builder)
     }
 
     /// Creates a `Maglev` lookup table with the specified capacity, using hasher to hash the keys.
-    pub fn with_capacity_and_hasher<I: Into<&'a [N]>>(nodes: I,
-                                                      capacity: usize,
-                                                      hash_builder: S)
-                                                      -> Self {
-        let nodes = Vec::from(nodes.into());
-        let lookup = Self::populate(&nodes,
-                                    if capacity > 0 {
-                                        capacity
-                                    } else {
-                                        nodes.len() * 100
-                                    },
-                                    &hash_builder);
+    pub fn with_capacity_and_hasher<I: IntoIterator<Item = N>>(
+        nodes: I,
+        capacity: usize,
+        hash_builder: S,
+    ) -> Self {
+        let nodes = nodes.into_iter().collect::<Vec<_>>();
+        let lookup = Self::populate(
+            &nodes,
+            if capacity > 0 {
+                capacity
+            } else {
+                nodes.len() * 100
+            },
+            &hash_builder,
+        );
 
         Maglev {
-            nodes: nodes,
-            lookup: lookup,
-            hash_builder: hash_builder,
+            nodes,
+            lookup,
+            hash_builder,
         }
     }
-}
-
-impl<'a, N: Hash, S: BuildHasher> ConsistentHasher<N> for Maglev<N, S> {
-    #[inline]
-    fn nodes(&self) -> &[N] {
-        self.nodes.as_slice()
-    }
 
     #[inline]
-    fn capacity(&self) -> usize {
-        self.lookup.len()
-    }
-
-    #[inline]
-    fn get<Q: Hash>(&self, key: &Q) -> &N {
-        let key = Self::hash_with_seed(key, 0xdeadbabe, &self.hash_builder);
-
-        &self.nodes[self.lookup[key % self.lookup.len()]]
-    }
-}
-
-impl<'a, N: 'a + Hash, S: BuildHasher> Maglev<N, S> {
-    #[inline]
-    fn hash_with_seed<Q: Hash>(key: &Q, seed: u32, hash_builder: &S) -> usize {
+    fn hash_with_seed<Q: Hash + Eq + ?Sized>(key: &Q, seed: u32, hash_builder: &S) -> usize {
         let mut hasher = hash_builder.build_hasher();
         hasher.write_u32(seed);
         key.hash(&mut hasher);
         hasher.finish() as usize
     }
 
-    fn populate(nodes: &Vec<N>, capacity: usize, hash_builder: &S) -> Vec<usize> {
-        let m = Sieve::new(capacity * 2).primes_from(capacity).next().unwrap();
+    fn populate(nodes: &[N], capacity: usize, hash_builder: &S) -> Vec<isize> {
+        let m = Sieve::new(capacity * 2)
+            .primes_from(capacity)
+            .next()
+            .unwrap();
         let n = nodes.len();
 
-        let permutation: Vec<Vec<usize>> = nodes.iter()
+        let permutation: Vec<Vec<usize>> = nodes
+            .iter()
             .map(|node| {
-                let offset = Self::hash_with_seed(&node, 0xdeadbabe, &hash_builder) % m;
-                let skip = (Self::hash_with_seed(&node, 0xdeadbeef, &hash_builder) % (m - 1)) + 1;
+                let offset = Self::hash_with_seed(&node, 0xdead_babe, &hash_builder) % m;
+                let skip = (Self::hash_with_seed(&node, 0xdead_beef, &hash_builder) % (m - 1)) + 1;
 
                 (0..m).map(|i| (offset + i * skip) % m).collect()
             })
@@ -120,116 +106,163 @@ impl<'a, N: 'a + Hash, S: BuildHasher> Maglev<N, S> {
             }
         }
 
-        unsafe { mem::transmute(entry) }
+        entry
+    }
+}
+
+impl<N: Hash + Eq> iter::FromIterator<N> for Maglev<N, BuildHasherDefault<DefaultHasher>> {
+    fn from_iter<T: IntoIterator<Item = N>>(iter: T) -> Self {
+        Maglev::new(iter)
+    }
+}
+
+impl<N: Hash + Eq, S: BuildHasher> ConsistentHasher<N> for Maglev<N, S> {
+    #[inline]
+    fn nodes(&self) -> &[N] {
+        self.nodes.as_slice()
+    }
+
+    #[inline]
+    fn capacity(&self) -> usize {
+        self.lookup.len()
+    }
+
+    #[inline]
+    fn get<Q: ?Sized>(&self, key: &Q) -> &N
+    where
+        Q: Hash + Eq,
+        N: Borrow<Q>,
+    {
+        let key = Self::hash_with_seed(key, 0xdead_babe, &self.hash_builder);
+
+        &self.nodes[self.lookup[key % self.lookup.len()] as usize]
     }
 }
 
 #[cfg(test)]
 pub mod tests {
-    use fasthash::spooky::SpookyHash128;
+    use fasthash::spooky::Hash128;
 
     use super::*;
-    use conshash::ConsistentHasher;
+    use crate::conshash::ConsistentHasher;
 
     #[test]
     fn test_maglev() {
-        let m = Maglev::new(&["Monday",
-                              "Tuesday",
-                              "Wednesday",
-                              "Thursday",
-                              "Friday",
-                              "Saturday",
-                              "Sunday"][..]);
+        let m = Maglev::new(vec![
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday",
+        ]);
 
         assert_eq!(m.nodes.len(), 7);
         assert_eq!(m.lookup.len(), 701);
-        assert!(m.lookup.iter().all(|&n| n < m.nodes.len()));
+        assert!(m.lookup.iter().all(|&n| n < m.nodes.len() as isize));
 
-        assert_eq!(*m.get(&"alice"), "Friday");
-        assert_eq!(*m.get(&"bob"), "Wednesday");
+        assert_eq!(*m.get("alice"), "Friday");
+        assert_eq!(*m.get("bob"), "Wednesday");
 
-        let m = Maglev::with_capacity(&["Monday",
-                                        "Tuesday",
-                                        "Wednesday",
-                                        // "Thursday",
-                                        "Friday",
-                                        "Saturday",
-                                        "Sunday"][..],
-                                      m.capacity());
+        let m = Maglev::with_capacity(
+            vec![
+                "Monday",
+                "Tuesday",
+                "Wednesday",
+                // "Thursday",
+                "Friday",
+                "Saturday",
+                "Sunday",
+            ],
+            m.capacity(),
+        );
 
         assert_eq!(m.nodes.len(), 6);
         assert_eq!(m.lookup.len(), 701);
-        assert!(m.lookup.iter().all(|&n| n < m.nodes.len()));
+        assert!(m.lookup.iter().all(|&n| n < m.nodes.len() as isize));
 
-        assert_eq!(*m.get(&"alice"), "Friday");
-        assert_eq!(*m.get(&"bob"), "Wednesday");
+        assert_eq!(*m.get("alice"), "Friday");
+        assert_eq!(*m.get("bob"), "Wednesday");
 
-        let m = Maglev::with_capacity(&["Monday",
-                                        // "Tuesday",
-                                        "Wednesday",
-                                        // "Thursday",
-                                        "Friday",
-                                        "Saturday",
-                                        "Sunday"][..],
-                                      m.capacity());
-
-        assert_eq!(m.nodes.len(), 5);
-        assert_eq!(m.lookup.len(), 701);
-        assert!(m.lookup.iter().all(|&n| n < m.nodes.len()));
-
-        assert_eq!(*m.get(&"alice"), "Friday");
-        assert_eq!(*m.get(&"bob"), "Wednesday");
-
-        let m = Maglev::with_capacity(&["Monday",
-                                        "Tuesday",
-                                        "Wednesday",
-                                        // "Thursday",
-                                        // "Friday",
-                                        "Saturday",
-                                        "Sunday"][..],
-                                      m.capacity());
+        let m = Maglev::with_capacity(
+            vec![
+                "Monday",
+                // "Tuesday",
+                "Wednesday",
+                // "Thursday",
+                "Friday",
+                "Saturday",
+                "Sunday",
+            ],
+            m.capacity(),
+        );
 
         assert_eq!(m.nodes.len(), 5);
         assert_eq!(m.lookup.len(), 701);
-        assert!(m.lookup.iter().all(|&n| n < m.nodes.len()));
+        assert!(m.lookup.iter().all(|&n| n < m.nodes.len() as isize));
 
-        assert_eq!(*m.get(&"alice"), "Saturday");
-        assert_eq!(*m.get(&"bob"), "Wednesday");
+        assert_eq!(*m.get("alice"), "Friday");
+        assert_eq!(*m.get("bob"), "Wednesday");
+
+        let m = Maglev::with_capacity(
+            vec![
+                "Monday",
+                "Tuesday",
+                "Wednesday",
+                // "Thursday",
+                // "Friday",
+                "Saturday",
+                "Sunday",
+            ],
+            m.capacity(),
+        );
+
+        assert_eq!(m.nodes.len(), 5);
+        assert_eq!(m.lookup.len(), 701);
+        assert!(m.lookup.iter().all(|&n| n < m.nodes.len() as isize));
+
+        assert_eq!(*m.get("alice"), "Saturday");
+        assert_eq!(*m.get("bob"), "Wednesday");
     }
 
     #[test]
     fn test_maglev_with_custom_hasher() {
-        let m = Maglev::with_hasher(&["Monday",
-                                      "Tuesday",
-                                      "Wednesday",
-                                      "Thursday",
-                                      "Friday",
-                                      "Saturday",
-                                      "Sunday"][..],
-                                    SpookyHash128 {});
+        let m = Maglev::with_hasher(
+            vec![
+                "Monday",
+                "Tuesday",
+                "Wednesday",
+                "Thursday",
+                "Friday",
+                "Saturday",
+                "Sunday",
+            ],
+            Hash128 {},
+        );
 
         assert_eq!(m.nodes.len(), 7);
         assert_eq!(m.lookup.len(), 701);
-        assert!(m.lookup.iter().all(|&n| n < m.nodes.len()));
+        assert!(m.lookup.iter().all(|&n| n < m.nodes.len() as isize));
 
-        assert_eq!(*m.get(&"alice"), "Monday");
-        assert_eq!(*m.get(&"bob"), "Wednesday");
+        assert_eq!(*m.get("alice"), "Monday");
+        assert_eq!(*m.get("bob"), "Wednesday");
 
-        let m = Maglev::with_capacity_and_hasher(&["Monday",
-                                                   "Tuesday",
-                                                   // "Wednesday",
-                                                   "Thursday",
-                                                   // "Friday",
-                                                   "Saturday",
-                                                   "Sunday"][..],
-                                                 m.capacity(),
-                                                 SpookyHash128 {});
+        let m = Maglev::with_capacity_and_hasher(
+            vec![
+                "Monday", "Tuesday",  // "Wednesday",
+                "Thursday", // "Friday",
+                "Saturday", "Sunday",
+            ],
+            m.capacity(),
+            Hash128 {},
+        );
 
         assert_eq!(m.nodes.len(), 5);
         assert_eq!(m.lookup.len(), 701);
-        assert!(m.lookup.iter().all(|&n| n < m.nodes.len()));
+        assert!(m.lookup.iter().all(|&n| n < m.nodes.len() as isize));
 
-        assert_eq!(*m.get(&"alice"), "Monday");
-        assert_eq!(*m.get(&"bob"), "Sunday");
+        assert_eq!(*m.get("alice"), "Monday");
+        assert_eq!(*m.get("bob"), "Sunday");
     }
 }
