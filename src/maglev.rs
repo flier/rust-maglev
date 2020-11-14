@@ -2,6 +2,7 @@ use std::borrow::Borrow;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
 use std::iter;
+use std::ops::Index;
 
 use primal::Sieve;
 
@@ -114,7 +115,11 @@ impl<N: Hash + Eq> iter::FromIterator<N> for Maglev<N, BuildHasherDefault<Defaul
     }
 }
 
-impl<N: Hash + Eq, S: BuildHasher> ConsistentHasher<N> for Maglev<N, S> {
+impl<N, S> ConsistentHasher<N> for Maglev<N, S>
+where
+    N: Hash + Eq,
+    S: BuildHasher,
+{
     #[inline]
     fn nodes(&self) -> &[N] {
         self.nodes.as_slice()
@@ -136,6 +141,19 @@ impl<N: Hash + Eq, S: BuildHasher> ConsistentHasher<N> for Maglev<N, S> {
 
             &self.nodes[lookup[key % lookup.len()] as usize]
         })
+    }
+}
+
+impl<N, S, Q> Index<&Q> for Maglev<N, S>
+where
+    N: Hash + Eq + Borrow<Q>,
+    S: BuildHasher,
+    Q: Hash + Eq + ?Sized,
+{
+    type Output = N;
+
+    fn index(&self, index: &Q) -> &Self::Output {
+        self.get(index).unwrap()
     }
 }
 
@@ -167,8 +185,8 @@ pub mod tests {
             .iter()
             .all(|&n| n < m.nodes.len() as isize));
 
-        assert_eq!(*m.get("alice").unwrap(), "Friday");
-        assert_eq!(*m.get("bob").unwrap(), "Wednesday");
+        assert_eq!(m["alice"], "Friday");
+        assert_eq!(m["bob"], "Wednesday");
 
         let m = Maglev::with_capacity(
             vec![
@@ -192,8 +210,8 @@ pub mod tests {
             .iter()
             .all(|&n| n < m.nodes.len() as isize));
 
-        assert_eq!(*m.get("alice").unwrap(), "Friday");
-        assert_eq!(*m.get("bob").unwrap(), "Wednesday");
+        assert_eq!(m["alice"], "Friday");
+        assert_eq!(m["bob"], "Wednesday");
 
         let m = Maglev::with_capacity(
             vec![
@@ -217,8 +235,8 @@ pub mod tests {
             .iter()
             .all(|&n| n < m.nodes.len() as isize));
 
-        assert_eq!(*m.get("alice").unwrap(), "Friday");
-        assert_eq!(*m.get("bob").unwrap(), "Wednesday");
+        assert_eq!(m["alice"], "Friday");
+        assert_eq!(m["bob"], "Wednesday");
 
         let m = Maglev::with_capacity(
             vec![
@@ -242,8 +260,8 @@ pub mod tests {
             .iter()
             .all(|&n| n < m.nodes.len() as isize));
 
-        assert_eq!(*m.get("alice").unwrap(), "Saturday");
-        assert_eq!(*m.get("bob").unwrap(), "Wednesday");
+        assert_eq!(m["alice"], "Saturday");
+        assert_eq!(m["bob"], "Wednesday");
     }
 
     #[test]
@@ -270,8 +288,8 @@ pub mod tests {
             .iter()
             .all(|&n| n < m.nodes.len() as isize));
 
-        assert_eq!(*m.get("alice").unwrap(), "Monday");
-        assert_eq!(*m.get("bob").unwrap(), "Wednesday");
+        assert_eq!(m["alice"], "Monday");
+        assert_eq!(m["bob"], "Wednesday");
 
         let m = Maglev::with_capacity_and_hasher(
             vec![
@@ -292,8 +310,8 @@ pub mod tests {
             .iter()
             .all(|&n| n < m.nodes.len() as isize));
 
-        assert_eq!(*m.get("alice").unwrap(), "Monday");
-        assert_eq!(*m.get("bob").unwrap(), "Sunday");
+        assert_eq!(m["alice"], "Monday");
+        assert_eq!(m["bob"], "Sunday");
     }
 
     #[test]

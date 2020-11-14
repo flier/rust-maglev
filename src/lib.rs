@@ -16,8 +16,8 @@
 //!                          "Saturday",
 //!                          "Sunday"]);
 //!
-//! assert_eq!(*m.get("alice").unwrap(), "Friday");
-//! assert_eq!(*m.get("bob").unwrap(), "Wednesday");
+//! assert_eq!(m["alice"], "Friday");
+//! assert_eq!(m["bob"], "Wednesday");
 //!
 //! // When the node list changed, ensure to use same `capacity` to rebuild the lookup table.
 //!
@@ -30,8 +30,8 @@
 //!                                    "Sunday"],
 //!                               m.capacity());
 //!
-//! assert_eq!(*m.get("alice").unwrap(), "Friday");
-//! assert_eq!(*m.get("bob").unwrap(), "Wednesday");
+//! assert_eq!(m["alice"], "Friday");
+//! assert_eq!(m["bob"], "Wednesday");
 //! ```
 //!
 //! Maglev use `std::collections::hash_map::DefaultHasher` by default,
@@ -55,8 +55,8 @@
 //!                                      "Sunday"],
 //!                                 Hash128 {});
 //!
-//!     assert_eq!(*m.get("alice").unwrap(), "Monday");
-//!     assert_eq!(*m.get("bob").unwrap(), "Wednesday");
+//!     assert_eq!(m["alice"], "Monday");
+//!     assert_eq!(m["bob"], "Wednesday");
 //! }
 //! ```
 mod conshash;
