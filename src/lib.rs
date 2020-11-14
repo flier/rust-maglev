@@ -1,7 +1,6 @@
 //! Maglev hashing - A consistent hashing algorithm from Google
 //!
-//! [Maglev: A Fast and Reliable Software Network Load Balancer]
-//! (https://static.googleusercontent.com/media/research.google.com/zh-CN//pubs/archive/44824.pdf)
+//! [Maglev: A Fast and Reliable Software Network Load Balancer](https://static.googleusercontent.com/media/research.google.com/zh-CN//pubs/archive/44824.pdf)
 //!
 //! # Example
 //!

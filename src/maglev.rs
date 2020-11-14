@@ -164,6 +164,8 @@ pub mod tests {
     use super::*;
     use crate::conshash::ConsistentHasher;
 
+    include!(concat!(env!("OUT_DIR"), "/skeptic-tests.rs"));
+
     #[test]
     fn test_maglev() {
         let m = Maglev::new(vec![

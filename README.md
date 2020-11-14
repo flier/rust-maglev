@@ -1,68 +1,65 @@
 # rust-maglev [![travis build](https://api.travis-ci.org/flier/rust-maglev.svg)](https://travis-ci.org/flier/rust-maglev) [![crate](https://img.shields.io/crates/v/maglev.svg)](https://crates.io/crates/maglev) [![docs](https://docs.rs/maglev/badge.svg)](https://docs.rs/maglev/)
 Google's consistent hashing algorithm
 
-# Usage
+## Usage
 
 To use `maglev`, first add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-maglev = "0.1"
-```
-
-Then, add this to your crate root:
-
-```rust
-extern crate maglev;
-
-use maglev::*;
+maglev = "0.2"
 ```
 
 And then, use `Maglev` with `ConsistentHasher` trait
 
 ```rust
-let m = Maglev::new(&["Monday",
-                      "Tuesday",
-                      "Wednesday",
-                      "Thursday",
-                      "Friday",
-                      "Saturday",
-                      "Sunday"][..]);
+use maglev::{ConsistentHasher, Maglev};
 
-assert_eq!(*m.get(&"alice"), "Friday");
-assert_eq!(*m.get(&"bob"), "Wednesday");
-```
+fn main() {
+    let m = Maglev::new(vec!["Monday",
+                            "Tuesday",
+                            "Wednesday",
+                            "Thursday",
+                            "Friday",
+                            "Saturday",
+                            "Sunday"]);
 
-When the node list changed, ensure to use same `capacity` to rebuild
+    assert_eq!(m["alice"], "Friday");
+    assert_eq!(m["bob"], "Wednesday");
 
-```rust
-let m = Maglev::with_capacity(&["Monday",
-                                // "Tuesday",
-                                "Wednesday",
-                                // "Thursday",
-                                "Friday",
-                                "Saturday",
-                                "Sunday"][..],
-                              m.capacity());
+    // When the node list changed, ensure to use same `capacity` to rebuild
 
-assert_eq!(*m.get(&"alice"), "Friday");
-assert_eq!(*m.get(&"bob"), "Wednesday");
+    let m = Maglev::with_capacity(vec!["Monday",
+                                  // "Tuesday",
+                                    "Wednesday",
+                                  // "Thursday",
+                                    "Friday",
+                                    "Saturday",
+                                    "Sunday"],
+                                m.capacity());
+
+    assert_eq!(m["alice"], "Friday");
+    assert_eq!(m["bob"], "Wednesday");
+}
 ```
 
 Maglev use `std::collections::hash_map::DefaultHasher` by default, we could use the given hash builder to hash keys.
 
 ```rust
-use fasthash::spooky::SpookyHash128;
+use fasthash::spooky::Hash128;
+use maglev::Maglev;
 
-let m = Maglev::with_hasher(&["Monday",
-                              "Tuesday",
-                              "Wednesday",
-                              "Thursday",
-                              "Friday",
-                              "Saturday",
-                              "Sunday"][..],
-                            SpookyHash128 {});
+fn main() {
+    let m = Maglev::with_hasher(vec!["Monday",
+                                     "Tuesday",
+                                     "Wednesday",
+                                     "Thursday",
+                                     "Friday",
+                                     "Saturday",
+                                     "Sunday"],
+                                Hash128 {});
 
-assert_eq!(*m.get(&"alice"), "Monday");
-assert_eq!(*m.get(&"bob"), "Wednesday");
+    assert_eq!(m["alice"], "Monday");
+    assert_eq!(m["bob"], "Wednesday");
+}
 ```
