@@ -11,7 +11,7 @@ use crate::conshash::ConsistentHasher;
 #[derive(Clone)]
 pub struct Maglev<N, S> {
     nodes: Vec<N>,
-    lookup: Vec<isize>,
+    lookup: Option<Vec<isize>>,
     hash_builder: S,
 }
 
@@ -40,15 +40,7 @@ impl<N: Hash + Eq, S: BuildHasher> Maglev<N, S> {
         hash_builder: S,
     ) -> Self {
         let nodes = nodes.into_iter().collect::<Vec<_>>();
-        let lookup = Self::populate(
-            &nodes,
-            if capacity > 0 {
-                capacity
-            } else {
-                nodes.len() * 100
-            },
-            &hash_builder,
-        );
+        let lookup = Self::populate(&nodes, capacity, &hash_builder);
 
         Maglev {
             nodes,
@@ -65,7 +57,13 @@ impl<N: Hash + Eq, S: BuildHasher> Maglev<N, S> {
         hasher.finish() as usize
     }
 
-    fn populate(nodes: &[N], capacity: usize, hash_builder: &S) -> Vec<isize> {
+    fn populate(nodes: &[N], mut capacity: usize, hash_builder: &S) -> Option<Vec<isize>> {
+        if nodes.is_empty() {
+            return None;
+        }
+        if capacity == 0 {
+            capacity = nodes.len() * 100
+        }
         let m = Sieve::new(capacity * 2)
             .primes_from(capacity)
             .next()
@@ -106,7 +104,7 @@ impl<N: Hash + Eq, S: BuildHasher> Maglev<N, S> {
             }
         }
 
-        entry
+        Some(entry)
     }
 }
 
@@ -124,18 +122,20 @@ impl<N: Hash + Eq, S: BuildHasher> ConsistentHasher<N> for Maglev<N, S> {
 
     #[inline]
     fn capacity(&self) -> usize {
-        self.lookup.len()
+        self.lookup.as_ref().map(|m| m.len()).unwrap_or_default()
     }
 
     #[inline]
-    fn get<Q: ?Sized>(&self, key: &Q) -> &N
+    fn get<Q: ?Sized>(&self, key: &Q) -> Option<&N>
     where
         Q: Hash + Eq,
         N: Borrow<Q>,
     {
-        let key = Self::hash_with_seed(key, 0xdead_babe, &self.hash_builder);
+        self.lookup.as_ref().map(|lookup| {
+            let key = Self::hash_with_seed(key, 0xdead_babe, &self.hash_builder);
 
-        &self.nodes[self.lookup[key % self.lookup.len()] as usize]
+            &self.nodes[lookup[key % lookup.len()] as usize]
+        })
     }
 }
 
@@ -159,11 +159,16 @@ pub mod tests {
         ]);
 
         assert_eq!(m.nodes.len(), 7);
-        assert_eq!(m.lookup.len(), 701);
-        assert!(m.lookup.iter().all(|&n| n < m.nodes.len() as isize));
+        assert_eq!(m.lookup.as_ref().unwrap().len(), 701);
+        assert!(m
+            .lookup
+            .as_ref()
+            .unwrap()
+            .iter()
+            .all(|&n| n < m.nodes.len() as isize));
 
-        assert_eq!(*m.get("alice"), "Friday");
-        assert_eq!(*m.get("bob"), "Wednesday");
+        assert_eq!(*m.get("alice").unwrap(), "Friday");
+        assert_eq!(*m.get("bob").unwrap(), "Wednesday");
 
         let m = Maglev::with_capacity(
             vec![
@@ -179,11 +184,16 @@ pub mod tests {
         );
 
         assert_eq!(m.nodes.len(), 6);
-        assert_eq!(m.lookup.len(), 701);
-        assert!(m.lookup.iter().all(|&n| n < m.nodes.len() as isize));
+        assert_eq!(m.lookup.as_ref().unwrap().len(), 701);
+        assert!(m
+            .lookup
+            .as_ref()
+            .unwrap()
+            .iter()
+            .all(|&n| n < m.nodes.len() as isize));
 
-        assert_eq!(*m.get("alice"), "Friday");
-        assert_eq!(*m.get("bob"), "Wednesday");
+        assert_eq!(*m.get("alice").unwrap(), "Friday");
+        assert_eq!(*m.get("bob").unwrap(), "Wednesday");
 
         let m = Maglev::with_capacity(
             vec![
@@ -199,11 +209,16 @@ pub mod tests {
         );
 
         assert_eq!(m.nodes.len(), 5);
-        assert_eq!(m.lookup.len(), 701);
-        assert!(m.lookup.iter().all(|&n| n < m.nodes.len() as isize));
+        assert_eq!(m.lookup.as_ref().unwrap().len(), 701);
+        assert!(m
+            .lookup
+            .as_ref()
+            .unwrap()
+            .iter()
+            .all(|&n| n < m.nodes.len() as isize));
 
-        assert_eq!(*m.get("alice"), "Friday");
-        assert_eq!(*m.get("bob"), "Wednesday");
+        assert_eq!(*m.get("alice").unwrap(), "Friday");
+        assert_eq!(*m.get("bob").unwrap(), "Wednesday");
 
         let m = Maglev::with_capacity(
             vec![
@@ -219,11 +234,16 @@ pub mod tests {
         );
 
         assert_eq!(m.nodes.len(), 5);
-        assert_eq!(m.lookup.len(), 701);
-        assert!(m.lookup.iter().all(|&n| n < m.nodes.len() as isize));
+        assert_eq!(m.lookup.as_ref().unwrap().len(), 701);
+        assert!(m
+            .lookup
+            .as_ref()
+            .unwrap()
+            .iter()
+            .all(|&n| n < m.nodes.len() as isize));
 
-        assert_eq!(*m.get("alice"), "Saturday");
-        assert_eq!(*m.get("bob"), "Wednesday");
+        assert_eq!(*m.get("alice").unwrap(), "Saturday");
+        assert_eq!(*m.get("bob").unwrap(), "Wednesday");
     }
 
     #[test]
@@ -242,11 +262,16 @@ pub mod tests {
         );
 
         assert_eq!(m.nodes.len(), 7);
-        assert_eq!(m.lookup.len(), 701);
-        assert!(m.lookup.iter().all(|&n| n < m.nodes.len() as isize));
+        assert_eq!(m.lookup.as_ref().unwrap().len(), 701);
+        assert!(m
+            .lookup
+            .as_ref()
+            .unwrap()
+            .iter()
+            .all(|&n| n < m.nodes.len() as isize));
 
-        assert_eq!(*m.get("alice"), "Monday");
-        assert_eq!(*m.get("bob"), "Wednesday");
+        assert_eq!(*m.get("alice").unwrap(), "Monday");
+        assert_eq!(*m.get("bob").unwrap(), "Wednesday");
 
         let m = Maglev::with_capacity_and_hasher(
             vec![
@@ -259,10 +284,25 @@ pub mod tests {
         );
 
         assert_eq!(m.nodes.len(), 5);
-        assert_eq!(m.lookup.len(), 701);
-        assert!(m.lookup.iter().all(|&n| n < m.nodes.len() as isize));
+        assert_eq!(m.lookup.as_ref().unwrap().len(), 701);
+        assert!(m
+            .lookup
+            .as_ref()
+            .unwrap()
+            .iter()
+            .all(|&n| n < m.nodes.len() as isize));
 
-        assert_eq!(*m.get("alice"), "Monday");
-        assert_eq!(*m.get("bob"), "Sunday");
+        assert_eq!(*m.get("alice").unwrap(), "Monday");
+        assert_eq!(*m.get("bob").unwrap(), "Sunday");
+    }
+
+    #[test]
+    fn test_maglev_with_empty_list() {
+        let m = Maglev::<&str, _>::new(None);
+
+        assert_eq!(m.nodes.len(), 0);
+        assert!(m.lookup.is_none());
+
+        assert_eq!(m.get("alice"), None);
     }
 }

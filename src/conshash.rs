@@ -12,7 +12,7 @@ pub trait ConsistentHasher<N: Sized> {
     fn capacity(&self) -> usize;
 
     /// Returns a reference to the node corresponding to the key.
-    fn get<Q: ?Sized>(&self, key: &Q) -> &N
+    fn get<Q: ?Sized>(&self, key: &Q) -> Option<&N>
     where
         Q: Hash + Eq,
         N: Borrow<Q>;
