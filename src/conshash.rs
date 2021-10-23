@@ -1,4 +1,3 @@
-use std::borrow::Borrow;
 use std::hash::Hash;
 
 /// Consistent hasher is a special kind of hashing such that when a hash table is resized,
@@ -14,6 +13,5 @@ pub trait ConsistentHasher<N: Sized> {
     /// Returns a reference to the node corresponding to the key.
     fn get<Q: ?Sized>(&self, key: &Q) -> Option<&N>
     where
-        Q: Hash + Eq,
-        N: Borrow<Q>;
+        Q: Hash + Eq;
 }
