@@ -1,4 +1,3 @@
-use std::borrow::Borrow;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
 use std::iter;
@@ -9,8 +8,8 @@ use primal::Sieve;
 use crate::conshash::ConsistentHasher;
 
 /// Maglev lookup table
-#[derive(Clone)]
-pub struct Maglev<N, S> {
+#[derive(Clone, Debug)]
+pub struct Maglev<N, S = BuildHasherDefault<DefaultHasher>> {
     nodes: Vec<N>,
     lookup: Option<Vec<isize>>,
     hash_builder: S,
@@ -81,8 +80,8 @@ impl<N: Hash + Eq, S: BuildHasher> Maglev<N, S> {
             })
             .collect();
 
-        let mut next: Vec<usize> = iter::repeat(0).take(n).collect();
-        let mut entry: Vec<isize> = iter::repeat(-1).take(m).collect();
+        let mut next: Vec<usize> = vec![0; n];
+        let mut entry: Vec<isize> = vec![-1; m];
 
         let mut j = 0;
 
@@ -134,7 +133,6 @@ where
     fn get<Q: ?Sized>(&self, key: &Q) -> Option<&N>
     where
         Q: Hash + Eq,
-        N: Borrow<Q>,
     {
         self.lookup.as_ref().map(|lookup| {
             let key = Self::hash_with_seed(key, 0xdead_babe, &self.hash_builder);
@@ -146,7 +144,7 @@ where
 
 impl<N, S, Q> Index<&Q> for Maglev<N, S>
 where
-    N: Hash + Eq + Borrow<Q>,
+    N: Hash + Eq,
     S: BuildHasher,
     Q: Hash + Eq + ?Sized,
 {
